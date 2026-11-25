@@ -1,0 +1,9 @@
+{
+  "framework": "nextjs",
+  "headers": [
+    {
+      "source": "/widget",
+      "headers": [{ "key": "Content-Security-Policy", "value": "frame-ancestors *" }]
+    }
+  ]
+}
