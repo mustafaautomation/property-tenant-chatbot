@@ -8,6 +8,8 @@ Portfolio demo by Quvantic - fictional brand, not a real business / not client w
 
 ![Resident desk demo](docs/demo.gif)
 
+The closed launcher shows a teaser and two job pills. Inside the thread, answers stream with follow-up chips, citation chips, a maintenance form, a ticket timeline, and a handoff to the staff board. Demo mode runs with no API key. A live model switches the header pill to Live AI.
+
 ## Screenshots
 
 ![Landing](docs/screenshots/landing.png)

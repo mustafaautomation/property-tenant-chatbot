@@ -149,6 +149,7 @@ export type Conversation = {
   pending: PendingIntent | null
   messages: ChatMessage[]
   handoffIds: string[]
+  botPaused?: boolean
 }
 
 export type Store = {
@@ -185,4 +186,5 @@ export type TurnResult = {
   tenant: PublicTenant | null
   ticket: { id: string; priority: Priority; etaLabel: string; status: TicketStatus } | null
   messages: ChatMessage[]
+  source?: "model" | "rules"
 }

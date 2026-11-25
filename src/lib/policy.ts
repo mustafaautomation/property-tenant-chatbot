@@ -597,10 +597,11 @@ export async function handleTurn(input: TurnInput): Promise<TurnResult> {
   if (!rulesRequired(input.message)) {
     try {
       const { handleTurnWithModel } = await import("@/lib/llm")
-      return await handleTurnWithModel(input)
+      const result = await handleTurnWithModel(input)
+      return { ...result, source: "model" }
     } catch (error) {
       console.error("Live model failed, using the resident policy.", error)
     }
   }
-  return handleTurnWithRules(input)
+  return { ...handleTurnWithRules(input), source: "rules" }
 }

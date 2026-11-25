@@ -1,9 +1,9 @@
-import { ChatDesk } from "@/components/chat-desk"
+import { DeskWidget } from "@/components/chat/desk-widget"
 
 export default function WidgetPage() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-card">
-      <ChatDesk />
-    </div>
+    <main className="h-dvh">
+      <DeskWidget variant="frame" />
+    </main>
   )
 }

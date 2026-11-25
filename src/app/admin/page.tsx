@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const signedIn = jar.get(DESK_COOKIE)?.value === deskToken()
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader desk />
+      <SiteHeader />
       <main id="content" className="flex-1">
         {signedIn ? <StaffDesk /> : <LoginCard />}
       </main>

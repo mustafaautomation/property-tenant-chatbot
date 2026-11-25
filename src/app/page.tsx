@@ -1,132 +1,141 @@
-import Link from "next/link"
-import { BUILDINGS, DESK_PHONE, EMERGENCY_PHONE } from "@/lib/catalog"
-import { SiteHeader } from "@/components/site-header"
+"use client"
 
-const steps = [
-  {
-    title: "Verify the lease",
-    copy: "Unit and last name. The desk will not open another household's ledger.",
-  },
-  {
-    title: "Answer from the notes",
-    copy: "Late fees, pets, parking, quiet hours, trash, and renewals are quoted from the resident notes.",
-  },
-  {
-    title: "Triage the repair",
-    copy: "A leaking sink becomes a ticket with a priority and an ETA. Flooding, gas, fire, no heat, and lockouts page on-call instead.",
-  },
-]
+import { useState } from "react"
+import Link from "next/link"
+import { Check, X } from "lucide-react"
+import { DeskWidget, type DeskEvent } from "@/components/chat/desk-widget"
+import { FloatingWidget } from "@/components/chat/floating-widget"
+import { SiteFooter } from "@/components/site-footer"
+import { SiteHeader } from "@/components/site-header"
+import { METRICS } from "@/lib/brand"
+import { EMERGENCY_PHONE } from "@/lib/catalog"
+
+const ASKS = ["What's the package policy?", "When is rent due?", "I need a maintenance ticket", "Book the rooftop lounge"]
 
 export default function HomePage() {
+  const [preview, setPreview] = useState<"desktop" | "phone">("desktop")
+  const [toasts, setToasts] = useState<Array<{ id: string; title: string; body: string }>>([])
+
+  function pushToast(event: DeskEvent) {
+    const id = `${event.type}-${Date.now()}`
+    if (event.type === "urgent") {
+      setToasts((current) => [
+        { id, title: "URGENT SMS sent to on-call", body: `Desk alerted · ${event.kind.replaceAll("_", " ")} · ${EMERGENCY_PHONE}` },
+        ...current,
+      ].slice(0, 3))
+      return
+    }
+    setToasts((current) => [{ id, title: "New human support request", body: `${event.name}: ${event.message.slice(0, 120)}` }, ...current].slice(0, 3))
+  }
+
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
-      <main id="content">
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+      <main id="content" className="flex-1">
+        <section className="mx-auto grid max-w-6xl items-start gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:py-14">
           <div>
-            <p className="text-sm font-medium tracking-wide text-copper uppercase">Portfolio demo · fictional company</p>
-            <h1 className="mt-3 max-w-xl text-4xl leading-tight text-balance sm:text-5xl">
-              The resident desk for three buildings in Cedarhaven.
+            <p className="text-sm font-medium tracking-wide text-[var(--clay)] uppercase">Portfolio demo · fictional company</p>
+            <h1 className="font-display mt-3 max-w-xl text-5xl leading-[1.05] text-balance sm:text-6xl">
+              The resident desk for <em className="italic">three</em> buildings in Cedarhaven.
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-foreground">
+            <p className="mt-4 max-w-xl text-[18px] leading-7 text-[var(--muted-foreground)]">
               Keystone Residences keeps the lease, the ledger, and the on-call line in one chat. Ask about rent, book the rooftop, or tell the desk the kitchen sink is leaking.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/chat"
-                className="inline-flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Message the desk
-              </Link>
-              <Link
-                href="/admin"
-                className="inline-flex h-11 items-center rounded-lg border border-border bg-card px-4 text-sm font-medium hover:bg-muted"
-              >
-                Open the staff board
+              <button type="button" className="inline-flex h-11 items-center rounded-full bg-[var(--accent)] px-4 text-sm font-medium text-[var(--accent-foreground)]" onClick={() => document.querySelector<HTMLTextAreaElement>("[data-testid='landing-hero-chat'] textarea")?.focus()}>
+                Chat now
+              </button>
+              <Link href="/embed-demo" className="inline-flex h-11 items-center rounded-full border border-[var(--border)] px-4 text-sm font-medium">
+                See the embed
               </Link>
             </div>
+            <p className="mt-3 text-sm text-[var(--muted-foreground)]">Fictional buildings. The offline desk runs with no API key.</p>
+            <div data-testid="try-asking" className="mt-6 flex flex-wrap gap-2">
+              {ASKS.map((prompt) => (
+                <button key={prompt} type="button" className="h-9 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-[13px] font-medium" onClick={() => window.dispatchEvent(new CustomEvent("keystone-ask", { detail: prompt }))}>
+                  Try asking: {prompt}
+                </button>
+              ))}
+            </div>
           </div>
-          <aside className="rounded-2xl border border-copper/40 bg-card p-5 shadow-sm">
-            <p className="text-xs font-medium tracking-wide text-copper uppercase">On-call, day and night</p>
-            <p className="mt-2 font-heading text-3xl text-foreground">
-              <a href="tel:5550192400">{EMERGENCY_PHONE}</a>
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Flooding, gas, fire, no heat when it is cold, and lockouts. Call this before you wait on a routine ticket. Desk line {DESK_PHONE}, weekdays 9:00 a.m. to 6:00 p.m.
-            </p>
-          </aside>
+          <div id="live-desk" className="lg:pr-16">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Live desk</p>
+              <div data-testid="preview-toggle" className="flex rounded-full border border-[var(--border)] p-0.5 text-[12px]">
+                <button type="button" aria-pressed={preview === "desktop"} className={`rounded-full px-3 py-1 ${preview === "desktop" ? "bg-[var(--accent)] text-[var(--accent-foreground)]" : ""}`} onClick={() => setPreview("desktop")}>Desktop</button>
+                <button type="button" aria-pressed={preview === "phone"} className={`rounded-full px-3 py-1 ${preview === "phone" ? "bg-[var(--accent)] text-[var(--accent-foreground)]" : ""}`} onClick={() => setPreview("phone")}>Phone</button>
+              </div>
+            </div>
+            <div data-testid="landing-hero-chat" className={`chat-widget-shell mx-auto h-[min(640px,calc(100dvh-180px))] min-h-[520px] ${preview === "phone" ? "w-[390px] max-w-full" : "w-full max-w-[400px]"}`}>
+              <DeskWidget variant="hero" storageKey="keystone-hero" onEvent={pushToast} />
+            </div>
+          </div>
         </section>
 
-        <section className="mx-auto grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-3">
-          {BUILDINGS.map((building) => (
-            <article key={building.id} className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-xs text-muted-foreground">{building.kind}</p>
-              <h2 className="mt-1 text-2xl">{building.name}</h2>
-              <p className="mt-2 text-sm text-foreground">{building.address}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{building.blurb}</p>
-              <p className="mt-4 text-sm">{building.units} homes</p>
-            </article>
+        <section data-testid="trust-panel" className="mx-auto grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-2">
+          <article className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="text-sm font-semibold tracking-wide uppercase">What it does</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {["Answers from the 24 resident notes and names the source", "Opens a maintenance ticket with the desk priority and ETA", "Reads a verified ledger and offers real booking times", "Pages on-call for flooding, gas, fire, no heat, and lockouts"].map((item) => (
+                <li key={item} className="flex gap-2"><Check className="mt-0.5 size-4 text-[var(--success)]" aria-hidden="true" />{item}</li>
+              ))}
+            </ul>
+          </article>
+          <article className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)] p-5">
+            <h2 className="text-sm font-semibold tracking-wide uppercase">What it will not do</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {["Invent fees, balances, or arrival times", "Give legal, medical, or financial advice", "Pretend to be a person", "Open another household's ledger"].map((item) => (
+                <li key={item} className="flex justify-between gap-3"><span className="flex gap-2"><X className="mt-0.5 size-4 text-[var(--danger)]" aria-hidden="true" />{item}</span><span className="text-[var(--muted-foreground)]">Never</span></li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        <section data-testid="metrics-strip" className="mx-auto mt-10 grid max-w-6xl grid-cols-2 gap-4 px-4 sm:px-6 md:grid-cols-4">
+          {METRICS.map((metric) => (
+            <div key={metric.label} className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+              <p className="text-[12px] text-[var(--muted-foreground)]">{metric.label}</p>
+              <p className="text-[28px] leading-8 font-semibold">{metric.value}</p>
+            </div>
           ))}
         </section>
 
-        <section className="mx-auto mt-12 max-w-6xl px-4 sm:px-6">
-          <div className="rounded-2xl border border-border bg-card p-6 sm:p-8">
-            <p className="text-xs tracking-wide text-copper uppercase">Under the hood</p>
-            <h2 className="mt-2 text-3xl">How a message moves</h2>
-            <p className="mt-2 max-w-2xl text-muted-foreground">
-              The website, the embeddable widget, WhatsApp, and Messenger all call one desk. With no API key it follows a deterministic policy. With a free Groq or Gemini key, that same tool list is offered to the model, and emergencies still bypass it.
-            </p>
+        <section id="how" className="mx-auto mt-12 max-w-6xl px-4 sm:px-6">
+          <div className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8">
+            <h2 className="font-display text-3xl">How a message moves</h2>
             <div className="mt-6 grid gap-3 text-sm md:grid-cols-4">
               {[
-                ["Channels", "Web chat, widget iframe, WhatsApp, Messenger"],
-                ["Desk", "Guardrails, then Groq or the offline policy"],
-                ["Notes and tools", "BM25 plus a local hash embedding, zod-checked tools"],
-                ["Staff board", "Tickets, transcripts, and on-call handoffs"],
+                ["Channel", "Web chat, widget iframe, WhatsApp, Messenger"],
+                ["Retrieve", "BM25 plus a local hash embedding over 24 notes"],
+                ["Tools", "Zod-checked lease, ticket, ledger, and booking tools"],
+                ["Desk", "Staff board, handoff, and resume the assistant"],
               ].map(([title, copy]) => (
-                <div key={title} className="rounded-xl bg-muted p-4">
+                <div key={title} className="rounded-[12px] bg-[var(--muted)] p-4">
                   <p className="font-medium">{title}</p>
-                  <p className="mt-1 text-muted-foreground">{copy}</p>
+                  <p className="mt-1 text-[var(--muted-foreground)]">{copy}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="mx-auto mt-12 grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <article key={step.title} className="rounded-2xl bg-primary px-5 py-6 text-primary-foreground">
-              <p className="text-xs tracking-wide text-brass uppercase">0{index + 1}</p>
-              <h2 className="mt-2 text-2xl">{step.title}</h2>
-              <p className="mt-2 text-sm text-primary-foreground/85">{step.copy}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <div className="grid gap-6 rounded-2xl border border-border bg-card p-6 sm:p-8 md:grid-cols-2">
-            <div>
-              <h2 className="text-3xl">Try the seeded lease</h2>
-              <p className="mt-2 text-muted-foreground">
-                Tell the chat the unit and last name. The staff board password is printed on the sign-in card.
-              </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Nothing here is a real landlord, a real resident, or a real emergency service. Phone numbers use the 555 exchange.
-              </p>
-            </div>
-            <ul className="space-y-3 text-sm">
-              <li className="rounded-xl bg-muted px-4 py-3">
-                <span className="font-medium">Maya Chen</span> · The Alden, unit 4B. Ledger is clear.
-              </li>
-              <li className="rounded-xl bg-muted px-4 py-3">
-                <span className="font-medium">James Okonkwo</span> · Birch Court, unit 12. November rent is still open.
-              </li>
-              <li className="rounded-xl bg-muted px-4 py-3">
-                <span className="font-medium">Priya Shah</span> · Harbor Lofts, unit 308. Renewal window is open.
-              </li>
-            </ul>
-          </div>
+        <section className="mx-auto mt-12 max-w-6xl px-4 sm:px-6">
+          <h2 className="font-display text-3xl">Embed</h2>
+          <pre className="mt-4 overflow-x-auto rounded-[16px] bg-[var(--foreground)] p-4 font-mono text-[13px] text-[var(--background)]">
+            <code>{`<script src="https://property-chat.quvantic.com/widget.js" data-origin="https://property-chat.quvantic.com" async></script>`}</code>
+          </pre>
         </section>
       </main>
-    </>
+      <div className="pointer-events-none fixed top-20 right-4 z-[2147483001] flex w-[min(320px,calc(100vw-2rem))] flex-col gap-2">
+        {toasts.map((toast) => (
+          <div key={toast.id} data-testid="ops-toast" className="pointer-events-auto rounded-[16px] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm shadow-[var(--shadow-card)]">
+            <p className="font-semibold">{toast.title}</p>
+            <p className="mt-1 text-[var(--muted-foreground)]">{toast.body}</p>
+          </div>
+        ))}
+      </div>
+      <FloatingWidget onEvent={pushToast} />
+      <SiteFooter />
+    </div>
   )
 }

@@ -232,7 +232,7 @@ export function StaffDesk() {
       ) : null}
 
       {tab === "conversations" && board ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-[240px_1fr]">
+        <div className="mt-4 grid gap-3 lg:grid-cols-[320px_1fr]">
           <div className="space-y-2">
             {board.conversations.length === 0 ? <p className="text-sm text-muted-foreground">No resident chats yet.</p> : null}
             {board.conversations.map((conversation) => (
@@ -256,6 +256,14 @@ export function StaffDesk() {
             conversation={board.conversations.find((conversation) => conversation.id === activeConversation) ?? null}
             complaints={board.complaints}
             inspections={board.inspections}
+            onResume={async (id) => {
+              const response = await fetch(`/api/admin/conversations/${id}/resume`, { method: "POST" })
+              if (!response.ok) {
+                setError("The assistant didn't resume.")
+                return
+              }
+              await load()
+            }}
           />
         </div>
       ) : null}
@@ -357,24 +365,41 @@ function ConversationPane({
   conversation,
   complaints,
   inspections,
+  onResume,
 }: {
   conversation: Conversation | null
   complaints: NoiseComplaint[]
   inspections: Inspection[]
+  onResume: (id: string) => Promise<void>
 }) {
+  const [joined, setJoined] = useState<string | null>(null)
   if (!conversation) return <p className="text-sm text-muted-foreground">Select a chat.</p>
   const mineComplaints = complaints.filter((item) => item.tenantId === conversation.tenantId)
   const mineInspections = inspections.filter((item) => item.tenantId === conversation.tenantId)
   return (
     <div className="rounded-2xl bg-card p-4 ring-1 ring-border">
-      <h2 className="text-xl">{tenantLabel(conversation.tenantId)}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl">{tenantLabel(conversation.tenantId)}</h2>
+        <div className="flex gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => setJoined("Amina Rahman")}>
+            Join as Amina Rahman
+          </Button>
+          <Button type="button" size="sm" data-testid="resume-bot" onClick={() => void onResume(conversation.id)}>
+            Resume bot
+          </Button>
+        </div>
+      </div>
       <div className="mt-3 max-h-[32rem] space-y-3 overflow-y-auto">
         {conversation.messages.map((message) => (
-          <article key={message.id} className="text-sm">
+          <article key={message.id} className={`rounded-xl px-3 py-2 text-sm ${conversation.handoffIds.length ? "bg-[var(--accent-soft)]" : ""}`}>
             <p className="text-xs text-muted-foreground">{message.role === "user" ? "Resident" : "Desk"}</p>
             <p className="whitespace-pre-wrap">{message.content}</p>
+            {message.toolCalls?.length ? (
+              <p className="mt-1 font-mono text-xs text-muted-foreground">{message.toolCalls.map((call) => call.name).join(", ")}</p>
+            ) : null}
           </article>
         ))}
+        {joined ? <p className="text-sm">{joined} joined this chat.</p> : null}
       </div>
       {mineComplaints.length > 0 ? (
         <p className="mt-4 text-sm">Noise: {mineComplaints.map((item) => item.id).join(", ")}</p>

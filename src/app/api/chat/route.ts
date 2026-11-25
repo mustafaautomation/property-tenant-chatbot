@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
+import { deriveCards, phaseLabel } from "@/lib/cards"
 import { maskPii } from "@/lib/guardrails"
+import { conversationPaused, holdForSpecialist, markPaused } from "@/lib/pause"
 import { handleTurn } from "@/lib/policy"
-import type { Photo } from "@/lib/types"
+import { defaultDataDir, loadStore } from "@/lib/store"
+import { openSlots } from "@/lib/slots"
+import type { Photo, TurnResult } from "@/lib/types"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -15,6 +19,82 @@ function limited(ip: string): boolean {
   recent.push(now)
   hits.set(ip, recent)
   return false
+}
+
+function wordGroups(reply: string): string[] {
+  const parts = reply.split(/(\s+)/).filter((part) => part.length > 0)
+  if (parts.length === 0) return [reply]
+  const words = parts.filter((part) => part.trim()).length
+  const size = words > 80 ? 8 : words > 40 ? 5 : 3
+  const groups: string[] = []
+  let bucket: string[] = []
+  let count = 0
+  for (const part of parts) {
+    bucket.push(part)
+    if (part.trim()) count += 1
+    if (count >= size) {
+      groups.push(bucket.join(""))
+      bucket = []
+      count = 0
+    }
+  }
+  if (bucket.length) groups.push(bucket.join(""))
+  return groups
+}
+
+function attachSlots(message: string, result: TurnResult) {
+  const booking = result.toolCalls.find((call) => call.name === "book_amenity" && call.output.ok === true)
+  if (booking) return null
+  if (!/\b(book|reserve)\b/i.test(message)) return null
+  const store = loadStore(defaultDataDir())
+  return openSlots(new Date(), store.bookings, message)
+}
+
+function streamResult(result: TurnResult, slots: ReturnType<typeof attachSlots>) {
+  const encoder = new TextEncoder()
+  const hints = deriveCards({
+    userText: "",
+    toolCalls: result.toolCalls,
+    handoff: result.handoff,
+    citations: result.citations,
+  }).map((card) => card.type)
+  let cancelled = false
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (payload: unknown) => {
+        if (cancelled) return
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+      }
+      send({ type: "phase", label: phaseLabel(result.toolCalls), hints })
+      const groups = wordGroups(result.reply)
+      const gap = Math.min(24, Math.max(8, Math.floor(640 / Math.max(groups.length, 1))))
+      for (const text of groups) {
+        if (cancelled) return
+        send({ type: "token", text })
+        if (groups.length > 1) await new Promise((resolve) => setTimeout(resolve, gap))
+      }
+      if (cancelled) return
+      send({
+        type: "done",
+        conversationId: result.conversationId,
+        reply: result.reply,
+        toolCalls: result.toolCalls,
+        citations: result.citations,
+        handoff: result.handoff,
+        tenant: result.tenant,
+        ticket: result.ticket,
+        source: result.source ?? "rules",
+        slots,
+      })
+      controller.close()
+    },
+    cancel() {
+      cancelled = true
+    },
+  })
+  return new Response(stream, {
+    headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+  })
 }
 
 export async function POST(request: Request) {
@@ -44,7 +124,7 @@ export async function POST(request: Request) {
     if (!dataUrl.startsWith("data:image/")) {
       return NextResponse.json({ error: "Attach a JPEG, PNG, or WebP photo." }, { status: 400 })
     }
-    if (dataUrl.length > 1_800_000) {
+    if (dataUrl.length > 7_000_000) {
       return NextResponse.json({ error: "That photo is too large." }, { status: 400 })
     }
     image = {
@@ -53,48 +133,19 @@ export async function POST(request: Request) {
       dataUrl,
     }
   }
-  const turn = {
-    conversationId: typeof record.conversationId === "string" ? record.conversationId : undefined,
-    message,
-    image,
-  }
+  const conversationId = typeof record.conversationId === "string" ? record.conversationId : undefined
   console.info("resident-chat", maskPii(message))
+  const url = new URL(request.url)
+  const streaming = url.searchParams.get("stream") === "1"
   try {
-    const result = await handleTurn(turn)
-    const url = new URL(request.url)
-    if (url.searchParams.get("stream") === "1") {
-      const encoder = new TextEncoder()
-      const stream = new ReadableStream({
-        start(controller) {
-          const parts = result.reply.split(/(\s+)/)
-          for (const part of parts) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", text: part })}\n\n`))
-          }
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "done",
-                conversationId: result.conversationId,
-                reply: result.reply,
-                toolCalls: result.toolCalls,
-                citations: result.citations,
-                handoff: result.handoff,
-                tenant: result.tenant,
-                ticket: result.ticket,
-              })}\n\n`,
-            ),
-          )
-          controller.close()
-        },
-      })
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-        },
-      })
+    if (conversationPaused(conversationId)) {
+      const held = holdForSpecialist({ conversationId: conversationId!, message })
+      return streaming ? streamResult(held, null) : NextResponse.json(held)
     }
-    return NextResponse.json(result)
+    const result = await handleTurn({ conversationId, message, image })
+    if (result.handoff) markPaused(result.conversationId)
+    const slots = attachSlots(message, result)
+    return streaming ? streamResult(result, slots) : NextResponse.json({ ...result, slots })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "The desk hit a problem sending that. Try again." }, { status: 500 })

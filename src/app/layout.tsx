@@ -1,16 +1,14 @@
 import type { Metadata } from "next"
-import { Fraunces, Source_Sans_3 } from "next/font/google"
-import { SiteFooter } from "@/components/site-footer"
+import { Fraunces } from "next/font/google"
+import { GeistMono } from "geist/font/mono"
+import { GeistSans } from "geist/font/sans"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
-const sans = Source_Sans_3({
-  subsets: ["latin"],
-  variable: "--font-source",
-})
-
-const heading = Fraunces({
+const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-fraunces",
+  style: ["normal", "italic"],
 })
 
 export const metadata: Metadata = {
@@ -21,18 +19,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${heading.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${display.variable}`} suppressHydrationWarning>
       <body className="antialiased">
-        <a
-          href="#content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
-        >
-          Skip to content
-        </a>
-        <div className="flex min-h-dvh flex-col">
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          <SiteFooter />
-        </div>
+        <ThemeProvider>
+          <a
+            href="#content"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[2147483001] focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
+          >
+            Skip to content
+          </a>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

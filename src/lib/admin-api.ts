@@ -56,3 +56,14 @@ export function acknowledgeHandoff(id: string) {
 export function restoreDemo() {
   return resetStore(defaultDataDir())
 }
+
+export function setBotPaused(conversationId: string, paused: boolean) {
+  const dir = defaultDataDir()
+  const store = loadStore(dir)
+  const conversation = store.conversations.find((item) => item.id === conversationId)
+  if (!conversation) return null
+  conversation.botPaused = paused
+  conversation.updatedAt = new Date().toISOString()
+  saveStore(dir, store)
+  return conversation
+}

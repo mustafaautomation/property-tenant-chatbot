@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "/api/chat": ["./kb/**/*"],
     "/api/channels/whatsapp": ["./kb/**/*"],
     "/api/channels/messenger": ["./kb/**/*"],
+    "/kb/[slug]": ["./kb/**/*"],
   },
 }
 

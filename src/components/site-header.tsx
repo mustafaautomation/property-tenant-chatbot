@@ -1,30 +1,61 @@
-import Link from "next/link"
+"use client"
 
-export function SiteHeader({ desk = false }: { desk?: boolean }) {
+import Link from "next/link"
+import { useEffect, useState } from "react"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
+import { BrandMark } from "@/components/brand-mark"
+
+export function SiteHeader() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [scrolled, setScrolled] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
+
   return (
-    <header className="border-b border-border/80 bg-card/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="group flex min-w-0 items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
-            K
+    <header className={`sticky top-0 z-40 h-16 border-b border-transparent ${scrolled ? "border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_86%,transparent)] backdrop-blur" : ""}`}>
+      <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-2">
+          <span className="grid size-9 place-items-center rounded-full bg-[var(--clay)] text-[var(--clay-foreground)]">
+            <BrandMark className="size-5" strokeWidth={2} />
           </span>
-          <span className="min-w-0 leading-tight">
-            <span className="block truncate font-heading text-sm text-foreground sm:text-base">Keystone Residences</span>
-            <span className="hidden text-xs text-muted-foreground sm:block">Cedarhaven resident desk</span>
-          </span>
+          <span className="truncate text-[15px] font-semibold">Keystone Residences</span>
         </Link>
-        <nav className="flex shrink-0 items-center gap-1 text-sm whitespace-nowrap">
-          <Link href="/chat" className="rounded-lg px-2.5 py-2 text-foreground hover:bg-muted sm:px-3">
-            <span className="sm:hidden">Chat</span>
-            <span className="hidden sm:inline">Resident chat</span>
-          </Link>
-          <Link
-            href="/admin"
-            className={`rounded-lg px-2.5 py-2 sm:px-3 ${desk ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"}`}
+        <nav className="flex items-center gap-1 text-[13px] sm:gap-2 sm:text-sm">
+          <Link href="/#how" className="hidden rounded-lg px-2 py-2 sm:inline">How it works</Link>
+          <Link href="/chat" className="rounded-lg px-2 py-2">Live chat</Link>
+          <Link href="/admin" className="rounded-lg px-2 py-2">Admin</Link>
+          <Link href="/embed-demo" className="hidden rounded-lg px-2 py-2 md:inline">Embed</Link>
+          <button
+            type="button"
+            aria-label="Switch color theme"
+            className="grid size-9 place-items-center rounded-full"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           >
-            <span className="sm:hidden">Staff</span>
-            <span className="hidden sm:inline">Staff desk</span>
-          </Link>
+            {mounted && resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-9 items-center rounded-full bg-[var(--accent)] px-3 text-[13px] font-medium text-[var(--accent-foreground)]"
+            onClick={() => {
+              const hero = document.querySelector<HTMLTextAreaElement>("[data-testid='landing-hero-chat'] textarea")
+              if (hero) {
+                document.getElementById("live-desk")?.scrollIntoView({ behavior: "smooth", block: "center" })
+                hero.focus()
+                return
+              }
+              window.location.href = "/chat"
+            }}
+          >
+            Open the desk
+          </button>
         </nav>
       </div>
     </header>
