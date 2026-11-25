@@ -52,7 +52,7 @@
   teaser.innerHTML = '<button type="button" aria-label="Dismiss teaser" style="float:right;border:0;background:transparent;cursor:pointer">×</button><button type="button" style="border:0;background:transparent;text-align:left;cursor:pointer;font:inherit">Heater acting up? I can open a ticket today.</button>'
   teaser.querySelector("[aria-label='Dismiss teaser']").addEventListener("click", function () {
     teaser.hidden = true
-    try { localStorage.setItem("keystone-teaser-dismissed", "1") } catch (error) { /* ignore */ }
+    try { localStorage.setItem("keystone-teaser-dismissed", "1") } catch { /* ignore */ }
   })
   teaser.querySelectorAll("button")[1].addEventListener("click", function () { openWith("My heater isn't working") })
   var button = document.createElement("button")
@@ -145,7 +145,7 @@
     if (!localStorage.getItem("keystone-teaser-dismissed")) {
       window.setTimeout(function () { teaser.hidden = false }, teaserDelay)
     }
-  } catch (error) {
+  } catch {
     window.setTimeout(function () { teaser.hidden = false }, teaserDelay)
   }
 })()
