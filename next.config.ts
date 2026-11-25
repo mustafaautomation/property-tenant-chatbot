@@ -1,7 +1,11 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  outputFileTracingIncludes: {
+    "/api/chat": ["./kb/**/*"],
+    "/api/channels/whatsapp": ["./kb/**/*"],
+    "/api/channels/messenger": ["./kb/**/*"],
+  },
+}
 
-export default nextConfig;
+export default nextConfig

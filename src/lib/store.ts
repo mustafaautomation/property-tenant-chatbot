@@ -3,9 +3,38 @@ import path from "path"
 import type { Conversation, Store, Ticket } from "@/lib/types"
 
 const caches = new Map<string, Store>()
+const memoryOnly = new Set<string>()
+let resolvedDefault: string | null = null
+
+function canWrite(dir: string): boolean {
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    const probe = path.join(dir, ".write-probe")
+    fs.writeFileSync(probe, "ok")
+    fs.unlinkSync(probe)
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function defaultDataDir(): string {
-  return process.env.KEYSTONE_DATA_DIR || path.join(process.cwd(), "data")
+  if (process.env.KEYSTONE_DATA_DIR) return process.env.KEYSTONE_DATA_DIR
+  if (resolvedDefault) return resolvedDefault
+  const local = path.join(process.cwd(), "data")
+  const temporary = path.join("/tmp", "keystone-data")
+  const preferred = process.env.VERCEL ? temporary : local
+  if (canWrite(preferred)) {
+    resolvedDefault = preferred
+    return preferred
+  }
+  if (preferred !== temporary && canWrite(temporary)) {
+    resolvedDefault = temporary
+    return temporary
+  }
+  resolvedDefault = "memory://keystone"
+  memoryOnly.add(resolvedDefault)
+  return resolvedDefault
 }
 
 function storePath(dir: string): string {
@@ -130,26 +159,41 @@ function ensureDir(dir: string) {
 export function loadStore(dir = defaultDataDir()): Store {
   const cached = caches.get(dir)
   if (cached) return cached
-  ensureDir(dir)
-  const file = storePath(dir)
+  if (memoryOnly.has(dir)) {
+    const seeded = seedStore()
+    caches.set(dir, seeded)
+    return seeded
+  }
   let store: Store
-  if (!fs.existsSync(file)) {
+  try {
+    ensureDir(dir)
+    const file = storePath(dir)
+    if (!fs.existsSync(file)) {
+      store = seedStore()
+      fs.writeFileSync(file, JSON.stringify(store, null, 2))
+    } else {
+      store = JSON.parse(fs.readFileSync(file, "utf8")) as Store
+    }
+  } catch {
+    memoryOnly.add(dir)
     store = seedStore()
-    fs.writeFileSync(file, JSON.stringify(store, null, 2))
-  } else {
-    store = JSON.parse(fs.readFileSync(file, "utf8")) as Store
   }
   caches.set(dir, store)
   return store
 }
 
 export function saveStore(dir: string, store: Store) {
-  ensureDir(dir)
   caches.set(dir, store)
-  const file = storePath(dir)
-  const temporary = `${file}.tmp`
-  fs.writeFileSync(temporary, JSON.stringify(store, null, 2))
-  fs.renameSync(temporary, file)
+  if (memoryOnly.has(dir)) return
+  try {
+    ensureDir(dir)
+    const file = storePath(dir)
+    const temporary = `${file}.tmp`
+    fs.writeFileSync(temporary, JSON.stringify(store, null, 2))
+    fs.renameSync(temporary, file)
+  } catch {
+    memoryOnly.add(dir)
+  }
 }
 
 export function withStore<T>(dir: string, fn: (store: Store) => T): T {
