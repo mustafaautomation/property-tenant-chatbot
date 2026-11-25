@@ -187,4 +187,6 @@ export type TurnResult = {
   ticket: { id: string; priority: Priority; etaLabel: string; status: TicketStatus } | null
   messages: ChatMessage[]
   source?: "model" | "rules"
+  provider?: string
+  model?: string
 }

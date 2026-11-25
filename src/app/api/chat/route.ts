@@ -84,6 +84,8 @@ function streamResult(result: TurnResult, slots: ReturnType<typeof attachSlots>)
         tenant: result.tenant,
         ticket: result.ticket,
         source: result.source ?? "rules",
+        provider: result.provider,
+        model: result.model,
         slots,
       })
       controller.close()

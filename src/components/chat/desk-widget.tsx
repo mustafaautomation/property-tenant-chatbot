@@ -109,6 +109,24 @@ export function DeskWidget({
   const abortRef = useRef<AbortController | null>(null)
   const speechRef = useRef<SpeechRec | null>(null)
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const liveDefault = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/health")
+      .then((response) => response.json())
+      .then((payload: { policy?: string }) => {
+        if (cancelled) return
+        if (payload.policy === "live") {
+          liveDefault.current = true
+          setMode("live")
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -215,7 +233,7 @@ export function DeskWidget({
     setConversationId(null)
     setTenant(null)
     setHuman(null)
-    setMode("demo")
+    setMode(liveDefault.current ? "live" : "demo")
     setLeadOpen(false)
     window.sessionStorage.removeItem(storageKey)
     setMenu(false)
@@ -309,7 +327,7 @@ export function DeskWidget({
               window.sessionStorage.setItem(storageKey, payload.conversationId)
             }
             if (payload.tenant) setTenant(payload.tenant)
-            if (payload.source === "model") setMode("live")
+            setMode(payload.source === "rules" ? "demo" : "live")
             const cards = deriveCards({
               userText: spoken,
               toolCalls: payload.toolCalls ?? [],

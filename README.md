@@ -30,7 +30,7 @@ flowchart LR
   msg[Messenger]
   desk[Resident desk]
   rules[Offline policy]
-  groq[Groq llama-3.3-70b]
+  groq[Groq]
   gemini[Gemini 2.0 Flash]
   kb[KB BM25 plus hash embedding]
   tools[Zod-checked tools]
@@ -50,7 +50,7 @@ flowchart LR
   store --> staff
 ```
 
-With no API key the desk uses the offline policy, so the demo and CI never depend on a secret. If `GROQ_API_KEY` is set, tool calls go to `llama-3.3-70b-versatile`. If that call fails and `GEMINI_API_KEY` is set, the same request falls through to `gemini-2.0-flash`. Emergencies, injection, off-topic requests, and sensitive topics stay on the offline policy.
+With no API key the desk uses the offline policy, so the demo and CI never depend on a secret. When `GROQ_API_KEY` or `GEMINI_API_KEY` is set, the desk calls the model named by `GROQ_MODEL` or `GEMINI_MODEL` (defaults `qwen/qwen3.8-27b` and `gemini-3.5-flash`). A 429 is retried once, then the other provider is tried. The offline policy runs only if both fail, and for emergencies, injection, off-topic requests, and sensitive topics.
 
 ## Features
 
